@@ -16,3 +16,4 @@ The webui should be modern cyber style and vivid colored.
 Please provide also a README.md file with all the info of how to use and setup the application
 
 It is a great repository to learn how to use git and github.
+This is updated version of the prompt.txt
