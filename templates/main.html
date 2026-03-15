@@ -21,6 +21,7 @@
         .cli-output { background: #0a0a0a; border-top: 1px solid var(--neon); padding: 10px; color: var(--blue); font-size: 0.8em; }
         .repo-grid { background: #050505; height: 200px; padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; overflow-y: auto; }
         .repo-card { border: 1px solid #333; padding: 5px; background: #111; font-size: 0.75em; cursor: pointer; }
+        .commit-entry { color: var(--blue); font-size: 0.9em; margin-top: 4px; padding-left: 10px; border-left: 1px dotted var(--blue); }
     </style>
 </head>
 <body>
@@ -38,6 +39,11 @@
                 <input type="text" id="cName" placeholder="Repo Name"><button onclick="create()">[+] Push New</button>
                 <button onclick="update()" style="margin-top:5px;">[>] Sync Updates</button>
                 <button onclick="openFolder()" style="margin-top:5px; background:#222;">[O] Open Folder</button>
+            </div>
+            <div class="card">
+                <h3>// VISIBILITY</h3>
+                <input type="text" id="vName" placeholder="Repo Name">
+                <div class="input-group"><button onclick="setVis(true)" style="flex:1">LOCK</button><button onclick="setVis(false)" style="flex:1">OPEN</button></div>
             </div>
             <div class="card">
                 <h3>// DOWNLOAD / CLONE</h3>
@@ -83,17 +89,34 @@
             const grid = document.getElementById('repos'); grid.innerHTML = "";
             d.data.forEach(r => {
                 const c = document.createElement('div'); c.className = 'repo-card';
-                c.innerHTML = `<b>${r.name}</b><br><span style="color:var(--blue)">${r.visibility}</span>`;
-                c.onclick = () => { document.getElementById('dName').value = r.name; document.getElementById('clName').value = r.name; };
+                c.innerHTML = `<b>${r.name}</b><br><span style="color:var(--blue)">${r.visibility}</span><div style="color:#888; font-size:0.8em">Last: ${r.last_activity}</div>`;
+                c.onclick = () => {
+                    document.getElementById('dName').value = r.name;
+                    document.getElementById('clName').value = r.name;
+                    document.getElementById('vName').value = r.name;
+                    getCommits(r.name);
+                };
                 grid.appendChild(c);
             });
         }
 
-        async function cloneRepo() {
-            const path = document.getElementById('clPath').value;
-            const name = document.getElementById('clName').value;
-            setCli(`git clone https://github.com/user/${name}.git ${path}`);
-            const res = await fetch('/api/clone', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({repo_name: name, target_path: path})});
+        async function getCommits(name) {
+            setCli(`GET repos/${name}/commits`);
+            const res = await fetch('/api/commits', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({repo_name: name})});
+            const d = await res.json();
+            if(d.data) {
+                log(`--- Commits: ${name} ---`);
+                d.data.forEach(c => {
+                    const e = document.createElement('div'); e.className = 'commit-entry';
+                    e.innerText = `> [${c.date.substring(0,10)}] ${c.msg}`;
+                    document.getElementById('term').appendChild(e);
+                });
+            }
+        }
+
+        async function create() {
+            setCli("git push -u origin main");
+            const res = await fetch('/api/create', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({repo_name:document.getElementById('cName').value, folder_path:document.getElementById('cPath').value})});
             const d = await res.json(); log(d.message);
         }
 
@@ -104,9 +127,24 @@
             const d = await res.json(); log(d.message);
         }
 
+        async function cloneRepo() {
+            const path = document.getElementById('clPath').value;
+            const name = document.getElementById('clName').value;
+            setCli(`git clone ... ${path}`);
+            const res = await fetch('/api/clone', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({repo_name: name, target_path: path})});
+            const d = await res.json(); log(d.message);
+        }
+
+        async function setVis(p) {
+            const name = document.getElementById('vName').value;
+            setCli(`PATCH repos/${name} {private: ${p}}`);
+            const res = await fetch('/api/visibility', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({repo_name: name, private: p})});
+            const d = await res.json(); log(d.message);
+        }
+
         async function del() {
             const name = document.getElementById('dName').value;
-            if(!name || !confirm(`Permanently delete ${name}?`)) return;
+            if(!name || !confirm(`Delete ${name}?`)) return;
             setCli(`DELETE repos/${name}`);
             const res = await fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({repo_name: name})});
             const d = await res.json(); log(d.message);

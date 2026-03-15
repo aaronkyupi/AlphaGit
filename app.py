@@ -140,20 +140,55 @@ def update_repo():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
+@app.route('/api/visibility', methods=['POST'])
+def toggle_visibility():
+    data = request.json
+    repo_name = data.get('repo_name')
+    is_private = data.get('private')
+    try:
+        headers = {"Authorization": get_auth_header(GITHUB_USER, GITHUB_TOKEN), "Accept": "application/vnd.github.v3+json"}
+        url = f"https://api.github.com/repos/{GITHUB_USER}/{repo_name}"
+        res = requests.patch(url, json={"private": is_private}, headers=headers)
+        if res.status_code == 200:
+            return jsonify({"status": "success", "message": "Visibility updated."})
+        return jsonify({"status": "error", "message": f"API Error: {res.status_code}"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
 @app.route('/api/delete', methods=['POST'])
 def delete_repo():
     repo_name = request.json.get('repo_name')
-    headers = {"Authorization": get_auth_header(GITHUB_USER, GITHUB_TOKEN)}
-    res = requests.delete(f"https://api.github.com/repos/{GITHUB_USER}/{repo_name}", headers=headers)
-    return jsonify({"status": "success", "message": f"Deleted {repo_name}"}) if res.status_code == 204 else jsonify({"status":"error"})
+    try:
+        headers = {"Authorization": get_auth_header(GITHUB_USER, GITHUB_TOKEN)}
+        url = f"https://api.github.com/repos/{GITHUB_USER}/{repo_name}"
+        res = requests.delete(url, headers=headers)
+        if res.status_code == 204:
+            return jsonify({"status": "success", "message": f"Deleted {repo_name}"})
+        return jsonify({"status": "error", "message": f"Delete failed: {res.status_code}"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/api/list', methods=['GET'])
 def list_repos():
     if not GITHUB_USER: return jsonify({"status": "error", "message": "No Auth"})
     headers = {"Authorization": get_auth_header(GITHUB_USER, GITHUB_TOKEN)}
     r = requests.get("https://api.github.com/user/repos?per_page=100&sort=updated", headers=headers)
-    repos = [{"name": x['name'], "visibility": "🔒 Private" if x['private'] else "🌐 Public", "last_activity": x['updated_at']} for x in r.json()]
+    repos = []
+    for x in r.json():
+        dt = datetime.strptime(x['updated_at'], "%Y-%m-%dT%H:%M:%SZ")
+        repos.append({"name": x['name'], "visibility": "🔒 Private" if x['private'] else "🌐 Public", "last_activity": dt.strftime("%Y-%m-%d %H:%M")})
     return jsonify({"status": "success", "data": repos})
+
+@app.route('/api/commits', methods=['POST'])
+def get_commits():
+    repo_name = request.json.get('repo_name')
+    headers = {"Authorization": get_auth_header(GITHUB_USER, GITHUB_TOKEN)}
+    url = f"https://api.github.com/repos/{GITHUB_USER}/{repo_name}/commits?per_page=10"
+    res = requests.get(url, headers=headers)
+    if res.status_code == 200:
+        commits = [{"msg": c['commit']['message'], "date": c['commit']['author']['date']} for c in res.json()]
+        return jsonify({"status": "success", "data": commits})
+    return jsonify({"status": "error"})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
