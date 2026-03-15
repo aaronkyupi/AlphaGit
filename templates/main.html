@@ -8,30 +8,27 @@
         body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         header { background: var(--dim); border-bottom: 2px solid var(--neon); padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
         h1 { margin: 0; color: var(--neon); text-shadow: 0 0 5px var(--neon); }
-        .status-badge { background: #000; padding: 5px 10px; border: 1px solid var(--neon); color: var(--neon); }
         .container { display: flex; flex: 1; overflow: hidden; }
-        .sidebar { width: 35%; padding: 20px; border-right: 1px solid var(--neon); background: #0a0a0a; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .sidebar { width: 35%; padding: 15px; border-right: 1px solid var(--neon); background: #0a0a0a; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
         .card { border: 1px solid var(--neon); padding: 10px; background: #000; }
-        .card h3 { color: var(--blue); border-bottom: 1px dashed var(--neon); margin: 0 0 8px 0; font-size: 0.85em; }
-        input { width: 100%; padding: 6px; background: #111; border: 1px solid var(--neon); color: var(--neon); margin-bottom: 4px; box-sizing: border-box; font-size: 0.9em; }
-        button { width: 100%; padding: 8px; margin-top: 4px; background: var(--dim); border: 1px solid var(--neon); color: #fff; cursor: pointer; font-weight: bold; }
+        .card h3 { color: var(--blue); border-bottom: 1px dashed var(--neon); margin: 0 0 8px 0; font-size: 0.8em; }
+        .input-group { display: flex; gap: 5px; margin-bottom: 5px; }
+        input { flex: 1; padding: 6px; background: #111; border: 1px solid var(--neon); color: var(--neon); font-size: 0.85em; }
+        button { padding: 8px; background: var(--dim); border: 1px solid var(--neon); color: #fff; cursor: pointer; font-weight: bold; }
         button:hover { background: var(--neon); color: #000; }
         button.danger { border-color: var(--red); color: var(--red); background: #1a0000; }
         button.danger:hover { background: var(--red); color: #fff; }
         .main-display { width: 65%; display: flex; flex-direction: column; background: #000; }
-        .terminal-window { flex: 1; padding: 15px; overflow-y: auto; color: var(--neon); border-bottom: 1px solid #333; font-size: 0.9em; }
-        .repo-area { background: #050505; height: 300px; display: flex; flex-direction: column; }
-        #repoSearch { border: none; border-bottom: 1px solid var(--blue); color: var(--blue); padding: 10px; background: #0a0a0a; }
-        .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; }
-        .repo-card { border: 1px solid #333; padding: 8px; background: #111; font-size: 0.8em; cursor: pointer; }
+        .terminal-window { flex: 1; padding: 15px; overflow-y: auto; color: var(--neon); font-size: 0.85em; border-bottom: 1px solid #222; }
+        #repoSearch { border: none; border-bottom: 1px solid var(--blue); color: var(--blue); padding: 10px; background: #0a0a0a; width: 100%; box-sizing: border-box; }
+        .repo-grid { background: #050505; height: 250px; padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; overflow-y: auto; }
+        .repo-card { border: 1px solid #333; padding: 5px; background: #111; font-size: 0.75em; cursor: pointer; }
         .repo-card:hover { border-color: var(--blue); }
-        .log-entry { margin-bottom: 3px; border-left: 2px solid var(--neon); padding-left: 8px; }
-        .log-error { color: var(--red); border-color: var(--red); }
-        .log-success { color: var(--neon); }
+        .log-entry { margin-bottom: 2px; border-left: 2px solid var(--neon); padding-left: 5px; }
     </style>
 </head>
 <body>
-    <header><h1>AlphaGit Pro v2.3</h1><div id="status" class="status-badge">OFFLINE</div></header>
+    <header><h1>AlphaGit Pro v2.5</h1><div id="status" class="status-badge">OFFLINE</div></header>
     <div class="container">
         <aside class="sidebar">
             <div class="card">
@@ -41,79 +38,91 @@
                 <button onclick="connect()">Link System</button>
             </div>
             <div class="card">
-                <h3>// CREATE</h3>
-                <input type="text" id="cPath" placeholder="Local Path">
-                <input type="text" id="cName" placeholder="New Repo Name">
+                <h3>// CREATE / UPDATE</h3>
+                <div class="input-group">
+                    <input type="text" id="cPath" placeholder="Path">
+                    <button onclick="browse('cPath')">...</button>
+                </div>
+                <input type="text" id="cName" placeholder="Repo Name">
                 <button onclick="create()">[+] Push New</button>
+                <button onclick="update()" style="margin-top:5px;">[>] Sync Updates</button>
+                <button onclick="openFolder()" style="margin-top:5px; background:#222;">[O] Open Folder</button>
             </div>
             <div class="card">
                 <h3>// CLONE</h3>
                 <input type="text" id="clName" placeholder="Repo Name">
-                <input type="text" id="clPath" placeholder="Clone To Path">
+                <input type="text" id="clPath" placeholder="Destination Path">
                 <button onclick="cloneRepo()">[*] Download</button>
-            </div>
-            <div class="card">
-                <h3>// UPDATE</h3>
-                <input type="text" id="uPath" placeholder="Git Path">
-                <button onclick="update()">[>] Sync Updates</button>
             </div>
             <div class="card" style="border-color: var(--red);">
                 <input type="text" id="dName" placeholder="Repo to Delete">
                 <button class="danger" onclick="del()">[X] Terminate Remote</button>
             </div>
-            <button onclick="list()">[=] Refresh Cloud List</button>
+            <button onclick="list()">[=] Refresh List</button>
         </aside>
         <main class="main-display">
             <div class="terminal-window" id="term"></div>
             <div class="repo-area">
-                <input type="text" id="repoSearch" placeholder="Filter repositories..." onkeyup="filterRepos()">
+                <input type="text" id="repoSearch" placeholder="Filter Cloud Repositories..." onkeyup="filterRepos()">
                 <div class="repo-grid" id="repos"></div>
             </div>
         </main>
     </div>
     <script>
         const log = (m, t='info') => {
-            const e = document.createElement('div'); e.className = `log-entry log-${t}`;
+            const e = document.createElement('div'); e.className = `log-entry`;
             e.innerText = `[${new Date().toLocaleTimeString()}] ${m}`;
             const term = document.getElementById('term');
             term.appendChild(e); term.scrollTop = term.scrollHeight;
         };
+
+        async function browse(id) {
+            const res = await fetch('/api/select_folder');
+            const d = await res.json();
+            if(d.path) document.getElementById(id).value = d.path;
+        }
+
+        async function openFolder() {
+            const path = document.getElementById('cPath').value;
+            await fetch('/api/open_explorer', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({path})
+            });
+        }
 
         async function connect() {
             const res = await fetch('/api/connect', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({username: document.getElementById('user').value, token: document.getElementById('token').value})
             });
-            const d = await res.json();
-            if(d.status === 'success') { document.getElementById('status').innerText = "ONLINE"; log(d.message, 'success'); }
-            else log(d.message, 'error');
+            const d = await res.json(); log(d.message);
         }
 
         async function create() {
-            log("Creating...");
+            log("Running creation...");
             const res = await fetch('/api/create', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({repo_name: document.getElementById('cName').value, folder_path: document.getElementById('cPath').value})
             });
-            const d = await res.json(); log(d.message, d.status);
+            const d = await res.json(); log(d.message);
+        }
+
+        async function update() {
+            log("Running update...");
+            const res = await fetch('/api/update', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({folder_path: document.getElementById('cPath').value})
+            });
+            const d = await res.json(); log(d.message);
         }
 
         async function cloneRepo() {
-            log("Cloning...");
+            log("Running clone...");
             const res = await fetch('/api/clone', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({repo_name: document.getElementById('clName').value, target_path: document.getElementById('clPath').value})
             });
-            const d = await res.json(); log(d.message, d.status);
-        }
-
-        async function update() {
-            log("Updating...");
-            const res = await fetch('/api/update', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({folder_path: document.getElementById('uPath').value})
-            });
-            const d = await res.json(); log(d.message, d.status);
+            const d = await res.json(); log(d.message);
         }
 
         async function del() {
@@ -123,14 +132,13 @@
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({repo_name: name})
             });
-            const d = await res.json(); log(d.message, d.status);
+            const d = await res.json(); log(d.message);
         }
 
         async function list() {
             const res = await fetch('/api/list');
             const d = await res.json();
-            const grid = document.getElementById('repos');
-            grid.innerHTML = "";
+            const grid = document.getElementById('repos'); grid.innerHTML = "";
             d.data.forEach(r => {
                 const c = document.createElement('div'); c.className = 'repo-card';
                 c.innerHTML = `<b>${r.visibility} ${r.name}</b>`;
