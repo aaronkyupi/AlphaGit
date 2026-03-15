@@ -1,0 +1,18 @@
+You are a Python system architect
+We are creating a project named AlphaGit Pro.
+Please create a web ui to create the AlphaGit application using flask and python.
+The goal of application is to get an application folder and name and do one of the following Github flows:
+1. upload the application creating a repository
+2. update existing application repository
+3. list existing repositories
+4. delete a repository
+5. exit
+
+All this should be done after connecting to the main repository with user and password for github.
+At the bottom of the screen you should have a CLI windows that shows the git command to be executed.
+Also keep github.log file to show all the commands and the results of them.
+You should provide app.py as backend and main.html as frontend.
+The webui should be modern cyber style and vivid colored.
+Please provide also a README.md file with all the info of how to use and setup the application
+
+It is a great repository to learn how to use git and github.

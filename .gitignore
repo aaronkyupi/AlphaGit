@@ -1,0 +1,5 @@
+github.log
+*.log
+.env
+venv/
+__pycache__/
