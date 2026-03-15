@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AlphaGit Pro // Cyber Command</title>
+    <title>AlphaGit Pro v2.9 // Cyber Command</title>
     <style>
         :root { --bg: #050505; --neon: #00ff41; --dim: #005f18; --blue: #00e5ff; --red: #ff0055; --text: #e0e0e0; }
         body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -16,142 +16,106 @@
         input { flex: 1; padding: 6px; background: #111; border: 1px solid var(--neon); color: var(--neon); font-size: 0.85em; }
         button { padding: 8px; background: var(--dim); border: 1px solid var(--neon); color: #fff; cursor: pointer; font-weight: bold; }
         button:hover { background: var(--neon); color: #000; }
-        button.danger { border-color: var(--red); color: var(--red); background: #1a0000; }
-        button.danger:hover { background: var(--red); color: #fff; }
         .main-display { width: 65%; display: flex; flex-direction: column; background: #000; }
         .terminal-window { flex: 1; padding: 15px; overflow-y: auto; color: var(--neon); font-size: 0.85em; border-bottom: 1px solid #222; }
-        #repoSearch { border: none; border-bottom: 1px solid var(--blue); color: var(--blue); padding: 10px; background: #0a0a0a; width: 100%; box-sizing: border-box; }
-        .repo-grid { background: #050505; height: 250px; padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; overflow-y: auto; }
+        .cli-output { background: #0a0a0a; border-top: 1px solid var(--neon); padding: 10px; color: var(--blue); font-size: 0.8em; }
+        .repo-grid { background: #050505; height: 200px; padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; overflow-y: auto; }
         .repo-card { border: 1px solid #333; padding: 5px; background: #111; font-size: 0.75em; cursor: pointer; }
-        .repo-card:hover { border-color: var(--blue); }
-        .log-entry { margin-bottom: 2px; border-left: 2px solid var(--neon); padding-left: 5px; }
     </style>
 </head>
 <body>
-    <header><h1>AlphaGit Pro v2.5</h1><div id="status" class="status-badge">OFFLINE</div></header>
+    <header><h1>AlphaGit Pro v2.9</h1><div id="status" class="status-badge">OFFLINE</div></header>
     <div class="container">
         <aside class="sidebar">
             <div class="card">
                 <h3>// AUTH</h3>
-                <input type="text" id="user" placeholder="Username">
-                <input type="password" id="token" placeholder="Token">
+                <input type="text" id="user" placeholder="Username"><input type="password" id="token" placeholder="Token">
                 <button onclick="connect()">Link System</button>
             </div>
             <div class="card">
                 <h3>// CREATE / UPDATE</h3>
-                <div class="input-group">
-                    <input type="text" id="cPath" placeholder="Path">
-                    <button onclick="browse('cPath')">...</button>
-                </div>
-                <input type="text" id="cName" placeholder="Repo Name">
-                <button onclick="create()">[+] Push New</button>
+                <div class="input-group"><input type="text" id="cPath" placeholder="Path"><button onclick="browse('cPath')">...</button></div>
+                <input type="text" id="cName" placeholder="Repo Name"><button onclick="create()">[+] Push New</button>
                 <button onclick="update()" style="margin-top:5px;">[>] Sync Updates</button>
                 <button onclick="openFolder()" style="margin-top:5px; background:#222;">[O] Open Folder</button>
             </div>
             <div class="card">
-                <h3>// CLONE</h3>
-                <input type="text" id="clName" placeholder="Repo Name">
-                <input type="text" id="clPath" placeholder="Destination Path">
-                <button onclick="cloneRepo()">[*] Download</button>
+                <h3>// DOWNLOAD / CLONE</h3>
+                <div class="input-group"><input type="text" id="clPath" placeholder="Clone Path"><button onclick="browse('clPath')">...</button></div>
+                <input type="text" id="clName" placeholder="Repo Name to Download">
+                <button onclick="cloneRepo()">[*] Pull from Cloud</button>
             </div>
-            <div class="card" style="border-color: var(--red);">
-                <input type="text" id="dName" placeholder="Repo to Delete">
-                <button class="danger" onclick="del()">[X] Terminate Remote</button>
+            <div class="card">
+                <h3>// TERMINATE</h3>
+                <input type="text" id="dName" placeholder="Repo Name to Delete">
+                <button onclick="del()" style="background:#2a0000; color:var(--red); border-color:var(--red);">[X] Delete Remote Repo</button>
             </div>
             <button onclick="list()">[=] Refresh List</button>
         </aside>
         <main class="main-display">
             <div class="terminal-window" id="term"></div>
-            <div class="repo-area">
-                <input type="text" id="repoSearch" placeholder="Filter Cloud Repositories..." onkeyup="filterRepos()">
-                <div class="repo-grid" id="repos"></div>
-            </div>
+            <div class="repo-area"><div class="repo-grid" id="repos"></div></div>
+            <div class="cli-output"><span style="color:var(--neon)">alpha_user@sys:~$ </span><span id="cliText">Waiting...</span></div>
         </main>
     </div>
     <script>
-        const log = (m, t='info') => {
-            const e = document.createElement('div'); e.className = `log-entry`;
+        const log = (m) => {
+            const e = document.createElement('div'); e.className = 'log-entry';
             e.innerText = `[${new Date().toLocaleTimeString()}] ${m}`;
-            const term = document.getElementById('term');
-            term.appendChild(e); term.scrollTop = term.scrollHeight;
+            const t = document.getElementById('term'); t.appendChild(e); t.scrollTop = 9999;
         };
+        const setCli = (cmd) => { document.getElementById('cliText').innerText = cmd; };
 
         async function browse(id) {
-            const res = await fetch('/api/select_folder');
-            const d = await res.json();
+            const res = await fetch('/api/select_folder'); const d = await res.json();
             if(d.path) document.getElementById(id).value = d.path;
         }
 
-        async function openFolder() {
-            const path = document.getElementById('cPath').value;
-            await fetch('/api/open_explorer', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({path})
-            });
-        }
-
         async function connect() {
-            const res = await fetch('/api/connect', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username: document.getElementById('user').value, token: document.getElementById('token').value})
-            });
+            setCli("GET api.github.com/user");
+            const res = await fetch('/api/connect', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:document.getElementById('user').value, token:document.getElementById('token').value})});
             const d = await res.json(); log(d.message);
         }
 
-        async function create() {
-            log("Running creation...");
-            const res = await fetch('/api/create', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({repo_name: document.getElementById('cName').value, folder_path: document.getElementById('cPath').value})
+        async function list() {
+            setCli("GET api.github.com/user/repos");
+            const res = await fetch('/api/list'); const d = await res.json();
+            const grid = document.getElementById('repos'); grid.innerHTML = "";
+            d.data.forEach(r => {
+                const c = document.createElement('div'); c.className = 'repo-card';
+                c.innerHTML = `<b>${r.name}</b><br><span style="color:var(--blue)">${r.visibility}</span>`;
+                c.onclick = () => { document.getElementById('dName').value = r.name; document.getElementById('clName').value = r.name; };
+                grid.appendChild(c);
             });
+        }
+
+        async function cloneRepo() {
+            const path = document.getElementById('clPath').value;
+            const name = document.getElementById('clName').value;
+            setCli(`git clone https://github.com/user/${name}.git ${path}`);
+            const res = await fetch('/api/clone', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({repo_name: name, target_path: path})});
             const d = await res.json(); log(d.message);
         }
 
         async function update() {
-            log("Running update...");
-            const res = await fetch('/api/update', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({folder_path: document.getElementById('cPath').value})
-            });
-            const d = await res.json(); log(d.message);
-        }
-
-        async function cloneRepo() {
-            log("Running clone...");
-            const res = await fetch('/api/clone', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({repo_name: document.getElementById('clName').value, target_path: document.getElementById('clPath').value})
-            });
+            const path = document.getElementById('cPath').value;
+            setCli(`git push (Path: ${path})`);
+            const res = await fetch('/api/update', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({folder_path: path})});
             const d = await res.json(); log(d.message);
         }
 
         async function del() {
             const name = document.getElementById('dName').value;
-            if(!confirm(`Delete ${name}?`)) return;
-            const res = await fetch('/api/delete', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({repo_name: name})
-            });
+            if(!name || !confirm(`Permanently delete ${name}?`)) return;
+            setCli(`DELETE repos/${name}`);
+            const res = await fetch('/api/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({repo_name: name})});
             const d = await res.json(); log(d.message);
         }
 
-        async function list() {
-            const res = await fetch('/api/list');
-            const d = await res.json();
-            const grid = document.getElementById('repos'); grid.innerHTML = "";
-            d.data.forEach(r => {
-                const c = document.createElement('div'); c.className = 'repo-card';
-                c.innerHTML = `<b>${r.visibility} ${r.name}</b>`;
-                c.onclick = () => { document.getElementById('clName').value = r.name; document.getElementById('dName').value = r.name; };
-                grid.appendChild(c);
-            });
-        }
-
-        function filterRepos() {
-            const val = document.getElementById('repoSearch').value.toLowerCase();
-            document.querySelectorAll('.repo-card').forEach(c => {
-                c.style.display = c.innerText.toLowerCase().includes(val) ? "block" : "none";
-            });
+        async function openFolder() {
+            const path = document.getElementById('cPath').value;
+            setCli(`os.startfile('${path}')`);
+            await fetch('/api/open_explorer', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({path})});
         }
     </script>
 </body>

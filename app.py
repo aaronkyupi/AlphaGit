@@ -17,6 +17,10 @@ GITHUB_TOKEN = ""
 app = Flask(__name__)
 LOG_FILE = "github.log"
 
+# CLEAN LOG FILE BEFORE STARTING
+with open(LOG_FILE, 'w', encoding='utf-8') as f:
+    f.write(f"--- AlphaGit Log Cleared at {datetime.now()} ---\n")
+
 logging.basicConfig(
     filename=LOG_FILE,
     level=logging.INFO,
@@ -26,12 +30,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 def get_auth_header(username, token):
     credentials = f"{username}:{token}"
     encoded_credentials = b64encode(credentials.encode("ascii")).decode("ascii")
     return f"Basic {encoded_credentials}"
-
 
 def run_git_command(command_args, repo_path=None):
     try:
@@ -52,11 +54,9 @@ def run_git_command(command_args, repo_path=None):
         logger.error(f"Exception: {str(e)}")
         return f"Exception: {str(e)}"
 
-
 @app.route('/')
 def index():
     return render_template('main.html')
-
 
 # --- SYSTEM UTILS ---
 @app.route('/api/select_folder', methods=['GET'])
@@ -73,7 +73,6 @@ def select_folder():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
-
 @app.route('/api/open_explorer', methods=['POST'])
 def open_explorer():
     path = request.json.get('path')
@@ -81,7 +80,6 @@ def open_explorer():
         os.startfile(os.path.normpath(path))
         return jsonify({"status": "success"})
     return jsonify({"status": "error", "message": "Path not found"})
-
 
 # --- GITHUB OPERATIONS ---
 @app.route('/api/connect', methods=['POST'])
@@ -100,7 +98,6 @@ def connect_github():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
-
 @app.route('/api/create', methods=['POST'])
 def create_repo():
     data = request.json
@@ -109,25 +106,26 @@ def create_repo():
         auth_header = get_auth_header(GITHUB_USER, GITHUB_TOKEN)
         headers = {"Authorization": auth_header, "Accept": "application/vnd.github.v3+json"}
         requests.post("https://api.github.com/user/repos", json={"name": repo_name}, headers=headers)
-
         run_git_command(["init"], folder_path)
         run_git_command(["branch", "-M", "main"], folder_path)
         run_git_command(["remote", "remove", "origin"], folder_path)
-
-        with open(os.path.join(folder_path, ".gitignore"), "w") as f:
-            f.write("github.log\n*.log\n.env\nvenv/\n__pycache__/\n")
-
-        run_git_command(["add", "."], folder_path)
-        run_git_command(["commit", "-m", "Initial commit via AlphaGit"], folder_path)
-
         auth_url = f"https://{GITHUB_USER}:{GITHUB_TOKEN}@github.com/{GITHUB_USER}/{repo_name}.git"
         run_git_command(["remote", "add", "origin", auth_url], folder_path)
         push_out = run_git_command(["push", "-u", "origin", "main"], folder_path)
-
         return jsonify({"status": "success", "message": "Repo created and pushed.", "details": push_out})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
+@app.route('/api/clone', methods=['POST'])
+def clone_repo():
+    data = request.json
+    repo_name, target_path = data.get('repo_name'), data.get('target_path')
+    try:
+        auth_url = f"https://{GITHUB_USER}:{GITHUB_TOKEN}@github.com/{GITHUB_USER}/{repo_name}.git"
+        output = run_git_command(["clone", auth_url, target_path])
+        return jsonify({"status": "success", "message": f"Cloned {repo_name}", "details": output})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/api/update', methods=['POST'])
 def update_repo():
@@ -142,42 +140,20 @@ def update_repo():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
-
-@app.route('/api/clone', methods=['POST'])
-def clone_repo():
-    data = request.json
-    repo_name, target_path = data.get('repo_name'), data.get('target_path')
-    try:
-        auth_url = f"https://{GITHUB_USER}:{GITHUB_TOKEN}@github.com/{GITHUB_USER}/{repo_name}.git"
-        output = run_git_command(["clone", auth_url, target_path])
-        return jsonify({"status": "success", "message": f"Cloned {repo_name}", "details": output})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
-
-
 @app.route('/api/delete', methods=['POST'])
 def delete_repo():
-    data = request.json
-    repo_name = data.get('repo_name')
-    try:
-        headers = {"Authorization": get_auth_header(GITHUB_USER, GITHUB_TOKEN)}
-        url = f"https://api.github.com/repos/{GITHUB_USER}/{repo_name}"
-        res = requests.delete(url, headers=headers)
-        if res.status_code == 204:
-            return jsonify({"status": "success", "message": f"Deleted {repo_name}"})
-        return jsonify({"status": "error", "message": f"Fail: {res.status_code}"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
-
+    repo_name = request.json.get('repo_name')
+    headers = {"Authorization": get_auth_header(GITHUB_USER, GITHUB_TOKEN)}
+    res = requests.delete(f"https://api.github.com/repos/{GITHUB_USER}/{repo_name}", headers=headers)
+    return jsonify({"status": "success", "message": f"Deleted {repo_name}"}) if res.status_code == 204 else jsonify({"status":"error"})
 
 @app.route('/api/list', methods=['GET'])
 def list_repos():
     if not GITHUB_USER: return jsonify({"status": "error", "message": "No Auth"})
     headers = {"Authorization": get_auth_header(GITHUB_USER, GITHUB_TOKEN)}
-    r = requests.get("https://api.github.com/user/repos?per_page=100", headers=headers)
-    return jsonify({"status": "success",
-                    "data": [{"name": x['name'], "visibility": "🔒" if x['private'] else "🌐"} for x in r.json()]})
-
+    r = requests.get("https://api.github.com/user/repos?per_page=100&sort=updated", headers=headers)
+    repos = [{"name": x['name'], "visibility": "🔒 Private" if x['private'] else "🌐 Public", "last_activity": x['updated_at']} for x in r.json()]
+    return jsonify({"status": "success", "data": repos})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
